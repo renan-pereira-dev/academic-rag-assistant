@@ -17,3 +17,6 @@ eval/results/*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Project Documentation
+/project-plan.md
