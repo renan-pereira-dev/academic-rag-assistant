@@ -1,0 +1,23 @@
+[
+  {
+    "id": "est-01",
+    "question": "A partir de qual período posso fazer estágio?",
+    "expected_answer": "<preencher lendo o manual>",
+    "source": { "document": "Manual Institucional de Estágios 2025", "page": 0 },
+    "should_refuse": false
+  },
+  {
+    "id": "dis-01",
+    "question": "Qual a diferença entre disciplina eletiva e optativa?",
+    "expected_answer": "<preencher lendo o manual>",
+    "source": { "document": "Manual de Graduação", "page": 0 },
+    "should_refuse": false
+  },
+  {
+    "id": "fora-01",
+    "question": "Qual o salário médio de um estagiário?",
+    "expected_answer": "<o assistente deve recusar>",
+    "source": null,
+    "should_refuse": true
+  }
+]
