@@ -1,0 +1,9 @@
+# Fontes dos PDFs baixados por scripts/download-docs.sh
+#
+# Formato: <nome-do-arquivo.pdf>|<URL oficial e pública do documento>
+# Linhas em branco e iniciadas por # são ignoradas.
+# Os PDFs vão para docs/ e NUNCA são versionados (ver .gitignore).
+#
+# TODO: preencher com os links oficiais da UniFBV, por exemplo:
+# manual-institucional-de-estagios-2025.pdf|https://<link-oficial>
+# manual-de-graduacao.pdf|https://<link-oficial>
