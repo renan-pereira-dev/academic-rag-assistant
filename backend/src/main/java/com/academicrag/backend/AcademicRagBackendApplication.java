@@ -1,0 +1,13 @@
+package com.academicrag.backend;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class AcademicRagBackendApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(AcademicRagBackendApplication.class, args);
+	}
+
+}

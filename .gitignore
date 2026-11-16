@@ -1,0 +1,19 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Maven generated files
+**/target/
+
+# Academic documents
+docs/*.pdf
+
+# Evaluation generated results
+eval/results/*
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
