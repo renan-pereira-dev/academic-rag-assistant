@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (./mvnw verify)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Os testes usam Testcontainers (pgvector/pgvector:pg16); o runner ubuntu já tem Docker.
+      # O LLM nunca é chamado nos testes, então não há segredo do Gemini no CI.
+      - name: Build and test
+        run: ./mvnw -B verify
