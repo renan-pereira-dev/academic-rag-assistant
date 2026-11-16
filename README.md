@@ -116,7 +116,7 @@ As configurações sensíveis devem ser fornecidas por variáveis de ambiente.
 Exemplo de variáveis necessárias:
 
 env
-GOOGLE_API_KEY=sua_chave_aqui
+GEMINI_API_KEY=sua_chave_aqui
 
 
 Nunca versione arquivos .env ou credenciais reais.
