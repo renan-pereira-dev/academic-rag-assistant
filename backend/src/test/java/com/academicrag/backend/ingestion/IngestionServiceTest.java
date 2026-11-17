@@ -32,6 +32,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.vectorstore.VectorStore;
 
 @ExtendWith(MockitoExtension.class)
@@ -218,6 +219,29 @@ class IngestionServiceTest {
 	}
 
 	@Test
+	void removesNullCharsBeforeSendingToVectorStore() throws IOException {
+		writeManual("regulamento.pdf"); // só fornece a contagem de 3 páginas; o texto vem do override abaixo
+		IngestionService service = new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP,
+				ONE_BATCH, NO_DELAY) {
+			@Override
+			List<Document> readPages(Path pdf) {
+				return List.of(extractedPage(1, "Art. 1\u0000 O aluno\u0000 deve se matricular."),
+						extractedPage(2, "\u0000\u0000 \u0000"));
+			}
+		};
+
+		IngestionResult result = service.ingest();
+
+		verify(vectorStore).add(chunksCaptor.capture());
+		List<Document> chunks = chunksCaptor.getValue();
+		assertThat(chunks).isNotEmpty().allSatisfy(chunk -> assertThat(chunk.getText()).doesNotContain("\u0000"));
+		assertThat(chunks.get(0).getText()).contains("Art. 1 O aluno deve se matricular.");
+		// A página 2 só tinha NUL e espaço: depois de limpa, conta como vazia.
+		assertThat(chunksOfPage(chunks, 2)).isEmpty();
+		assertThat(result.emptyPages()).isEqualTo(2);
+	}
+
+	@Test
 	void rejectsInvalidBatchSettings() {
 		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, 0,
 				NO_DELAY))
@@ -234,6 +258,13 @@ class IngestionServiceTest {
 		service().ingest();
 		verify(vectorStore).add(chunksCaptor.capture());
 		return chunksCaptor.getValue();
+	}
+
+	private static Document extractedPage(int pageNumber, String text) {
+		return Document.builder()
+			.text(text)
+			.metadata(PagePdfDocumentReader.METADATA_START_PAGE_NUMBER, pageNumber)
+			.build();
 	}
 
 	private static List<Document> chunksOfPage(List<Document> chunks, int page) {

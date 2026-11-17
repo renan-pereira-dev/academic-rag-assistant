@@ -181,12 +181,24 @@ public class IngestionService {
 		}
 	}
 
+	// Remove NUL antes do filtro de vazias: uma página só com \u0000 também conta como vazia.
 	private List<Document> readPagesWithText(Path pdf) {
-		PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder().withPagesPerDocument(1).build();
-		return new PagePdfDocumentReader(new FileSystemResource(pdf), config).get()
-			.stream()
-			.filter(page -> page.getText() != null && !page.getText().isBlank())
+		return readPages(pdf).stream()
+			.filter(page -> page.getText() != null)
+			.map(page -> page.mutate().text(removeNullChars(page.getText())).build())
+			.filter(page -> !page.getText().isBlank())
 			.toList();
+	}
+
+	/** Leitura bruta, uma página por Document; package-private para os testes simularem texto extraído. */
+	List<Document> readPages(Path pdf) {
+		PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder().withPagesPerDocument(1).build();
+		return new PagePdfDocumentReader(new FileSystemResource(pdf), config).get();
+	}
+
+	// Alguns PDFs extraem caracteres NUL (\u0000), que o PostgreSQL rejeita em colunas de texto UTF-8.
+	private static String removeNullChars(String text) {
+		return text.replace("\u0000", "");
 	}
 
 	private List<Document> chunkPage(String fileName, Document page) {
