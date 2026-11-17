@@ -2,15 +2,15 @@
   {
     "id": "est-01",
     "question": "A partir de qual período posso fazer estágio?",
-    "expected_answer": "<preencher lendo o manual>",
-    "source": { "document": "Manual Institucional de Estágios 2025", "page": 0 },
+    "expected_answer": "O manual não fixa um período único: cada curso tem suas especificidades, e o período de início e término do estágio obrigatório está na matriz curricular do curso. Para estagiar é preciso estar matriculado e frequentando as aulas; no estágio obrigatório, também estar matriculado na disciplina de estágio supervisionado e, em alguns casos, ter cursado os pré-requisitos.",
+    "source": { "document": "Manual_Institucional_-_Estágios_2025_-_Wyden_FEV2025.pdf", "page": 10 },
     "should_refuse": false
   },
   {
     "id": "dis-01",
     "question": "Qual a diferença entre disciplina eletiva e optativa?",
-    "expected_answer": "<preencher lendo o manual>",
-    "source": { "document": "Manual de Graduação", "page": 0 },
+    "expected_answer": "O manual só define as optativas: não integram o currículo mínimo, não são obrigatórias, servem para enriquecimento curricular, podem ser cursadas sem limite mínimo ou máximo e entram no histórico escolar. As eletivas aparecem apenas como parte da matriz curricular, sem definição, então o manual não permite afirmar a diferença.",
+    "source": { "document": "manual_graduacao_UNIFBV.pdf", "page": 9 },
     "should_refuse": false
   },
   {
