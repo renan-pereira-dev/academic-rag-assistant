@@ -214,21 +214,21 @@ Each run writes `report.json` and `report.md` to `eval/results/<timestamp>/`.
 
 ## AI-Assisted Development
 
-This project was built with **Claude Code** acting as the developer, under the technical supervision of **Renan** acting as Tech Lead. All work went through small, focused pull requests, and each one was reviewed before merge.
+This project was built using **Claude Code** as an AI pair-programming tool for scaffolding, boilerplate, and test generation, while **Renan** designed the RAG architecture, implemented and calibrated the core retrieval and prompt rules, conducted real document ingestion, and owns all debugging and maintenance. All work went through small, focused pull requests, reviewed and validated locally before merge[cite: 12].
 
-| Claude Code | Renan (Tech Lead) |
+| Renan (Author & Maintainer) | Claude Code (AI Pair-Programmer) |
 |---|---|
-| Infrastructure: Docker Compose, Spring AI/pgvector configuration, CI | Architecture and technical decisions (RAG design, stack, refusal strategy) |
-| REST contracts (`POST /api/chat`, DTOs, error handling, CORS) | Scoping each task and explicitly authorizing changes to protected areas (ingestion, retrieval, prompt, threshold) |
-| Ingestion and chat service implementation under explicit authorization | Reviewing and merging every PR, and understanding every decision |
-| Automated tests (JUnit, Mockito, Testcontainers, Vitest, `node --test`) | Running real ingestion and diagnosing production issues (path resolution, rate limits, NUL bytes) |
-| Base React UI and evaluation scripts | Building the golden set answer key, calibrating chunk size and threshold, and grading answer accuracy |
+| System architecture and technical decisions (RAG pipeline, stack, deterministic refusal strategy)[cite: 12] | Initial project scaffolding, Docker Compose setup, and GitHub Actions CI configuration[cite: 12] |
+| Implementing and calibrating core RAG logic (chunking parameters, similarity threshold, system prompt, prompt-injection guardrails)[cite: 12] | Boilerplate for REST endpoints (`POST /api/chat`), DTOs, CORS, and error handling |
+| Running real PDF ingestion, diagnosing production bottlenecks (path resolution, Gemini rate limits, NUL byte sanitization), and fixing bugs | Generating unit and integration test suites (JUnit 5, Mockito, Testcontainers, Vitest, `node --test`)[cite: 12] |
+| Building the 30-question golden set answer key, running evaluation rounds, and grading answer accuracy[cite: 8, 9] | Base React + TypeScript UI components and evaluation runner scripts[cite: 12] |
+| Reviewing every diff, running local test suites, and maintaining the codebase[cite: 12] | Assisting with documentation drafts under strict repository guardrails |
 
-The working rules for the assistant live in [`CLAUDE.md`](CLAUDE.md):
-- small PRs;
-- tests for all new code, with the LLM always mocked;
-- no secrets or PDFs in Git;
-- no changes to retrieval, the prompt, the refusal threshold or the golden set without the Tech Lead's authorization.
+Repository guardrails enforced during AI-assisted sessions:
+- small, reviewable PRs;
+- automated tests for all new code, with external LLM calls mocked;
+- no secrets, `.env`, or institutional PDFs committed to Git[cite: 8, 12];
+- no changes to retrieval logic, system prompts, similarity thresholds, or the golden set without explicit manual validation.
 
 ## Current limitations
 
