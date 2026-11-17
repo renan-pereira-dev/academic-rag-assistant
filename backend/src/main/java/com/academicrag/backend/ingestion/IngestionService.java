@@ -56,7 +56,9 @@ public class IngestionService {
 	// Mesmo tokenizer usado por padrão no TokenTextSplitter, para o overlap ser medido na mesma escala.
 	private final Encoding encoding = Encodings.newLazyEncodingRegistry().getEncoding(EncodingType.CL100K_BASE);
 
-	public IngestionService(VectorStore vectorStore, @Value("${app.ingestion.docs-dir:../docs}") Path docsDir,
+	// docsDir chega como String: injetado direto como Path, o PathEditor do Spring tenta resolvê-lo como
+	// recurso do ServletContext do Tomcat e falha com caminhos relativos como "../docs".
+	public IngestionService(VectorStore vectorStore, @Value("${app.ingestion.docs-dir:../docs}") String docsDir,
 			@Value("${app.ingestion.chunk-size:800}") int chunkSize,
 			@Value("${app.ingestion.chunk-overlap:100}") int chunkOverlap) {
 		if (chunkSize <= 0) {
@@ -66,7 +68,7 @@ public class IngestionService {
 			throw new IllegalArgumentException("app.ingestion.chunk-overlap deve estar entre 0 e chunk-size - 1.");
 		}
 		this.vectorStore = vectorStore;
-		this.docsDir = docsDir;
+		this.docsDir = Path.of(docsDir);
 		this.chunkOverlap = chunkOverlap;
 		this.splitter = TokenTextSplitter.builder().withChunkSize(chunkSize).build();
 	}

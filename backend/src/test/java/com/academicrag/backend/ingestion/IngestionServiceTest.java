@@ -123,21 +123,33 @@ class IngestionServiceTest {
 
 	@Test
 	void missingDirectoryFailsFast() {
-		IngestionService service = new IngestionService(vectorStore, docsDir.resolve("nao-existe"), CHUNK_SIZE,
-				OVERLAP);
+		IngestionService service = new IngestionService(vectorStore, docsDir.resolve("nao-existe").toString(),
+				CHUNK_SIZE, OVERLAP);
 
 		assertThatThrownBy(service::ingest).isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("nao-existe");
 	}
 
 	@Test
+	void acceptsRelativeDocsDirWithParentSegment() throws IOException {
+		// Mesmo formato do default "../docs", que quebrava quando injetado como Path.
+		Files.createDirectories(docsDir.resolve("backend"));
+		writeManual("regulamento.pdf");
+		String relativeDocsDir = docsDir.resolve("backend").resolve("..").toString();
+
+		IngestionResult result = new IngestionService(vectorStore, relativeDocsDir, CHUNK_SIZE, OVERLAP).ingest();
+
+		assertThat(result.files()).isEqualTo(1);
+	}
+
+	@Test
 	void rejectsOverlapNotSmallerThanChunkSize() {
-		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir, 100, 100))
+		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir.toString(), 100, 100))
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	private IngestionService service() {
-		return new IngestionService(vectorStore, docsDir, CHUNK_SIZE, OVERLAP);
+		return new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP);
 	}
 
 	private List<Document> ingestAndCapture() {
