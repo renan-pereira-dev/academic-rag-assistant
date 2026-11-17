@@ -39,7 +39,7 @@ class InfrastructureConfigurationTests {
 	@Test
 	void chatModelIsGoogleGenAiUsingGemini25Flash() {
 		assertThat(chatModel).isInstanceOf(GoogleGenAiChatModel.class);
-		assertThat(chatModel.getDefaultOptions().getModel()).isEqualTo("gemini-2.5-flash");
+		assertThat(chatModel.getDefaultOptions().getModel()).isEqualTo("gemini-3.8-flash");
 	}
 
 	@Test

@@ -35,7 +35,7 @@ flowchart LR
         Search --> Decision{"Any chunk<br/>above threshold?"}
         Decision -- "No" --> Refusal["Fixed refusal<br/>sources = []<br/>(LLM not called)"]
         Decision -- "Yes" --> Prompt["System rules +<br/>&lt;contexto&gt; chunks + &lt;pergunta&gt;"]
-        Prompt --> LLM["Gemini 2.5 Flash"]
+        Prompt --> LLM["Gemini 3.8 Flash"]
         LLM --> Answer["answer + sources<br/>(document, page, excerpt)"]
     end
 
@@ -63,7 +63,7 @@ ORDER BY distance LIMIT ?     -- topK
 | Language | **Java 21** | LTS with records and pattern matching; strongly typed backend that is easy to test. |
 | Framework | **Spring Boot 4.1.2** | Auto-configuration, validation, error handling and Testcontainers integration out of the box. |
 | AI integration | **Spring AI 2.0.1** | Provider-agnostic `ChatModel`, `EmbeddingModel` and `VectorStore`, plus PDF reader and token splitter, so the RAG pipeline is not tied to one vendor's SDK. |
-| LLM | **Gemini 2.5 Flash** | Fast and inexpensive, has a free tier, and handles Portuguese well. |
+| LLM | **Gemini 3.8 Flash** | Fast and inexpensive, has a free tier, and handles Portuguese well. |
 | Embeddings | **gemini-embedding-001 @ 768 dimensions** | Strong multilingual retrieval quality. The default 3072 dimensions exceed pgvector's 2000-dimension HNSW limit, so 768 is pinned on both sides. |
 | Vector DB | **PostgreSQL 16 + pgvector (HNSW, cosine)** | Vectors and metadata live in a regular relational database, with no extra service to run. HNSW gives fast approximate nearest-neighbour search, and cosine suits normalized text embeddings. |
 | Frontend | **React + Vite + TypeScript** | Fast dev server, typed API contract (`answer`, `sources`) and component tests with Vitest + Testing Library. |
@@ -205,29 +205,26 @@ Each run writes `report.json` and `report.md` to `eval/results/<timestamp>/`.
 
 | Round | `chunk_size` | `overlap` | `threshold` | Answer accuracy | Source accuracy | Correct refusal | Notes |
 |---|---|---|---|---|---|---|---|
-| 1 | 800 | 100 | 0.65 | | | | baseline |
-| 2 | | | | | | | |
-| 3 | | | | | | | |
-| 4 | | | | | | | |
+| 1 | 800 | 100 | 0.65 | _in progress_ | _in progress_ | _in progress_ | baseline |
 
-**Chosen configuration:** _to be filled_. **Rationale:** _to be filled_.
+**Status:** Baseline configuration (`chunk_size=800`, `overlap=100`, `threshold=0.65`) is active while multi-round threshold and chunking benchmarks are being executed and graded.
 
 ## AI-Assisted Development
 
-This project was built using **Claude Code** as an AI pair-programming tool for scaffolding, boilerplate, and test generation, while **Renan** designed the RAG architecture, implemented and calibrated the core retrieval and prompt rules, conducted real document ingestion, and owns all debugging and maintenance. All work went through small, focused pull requests, reviewed and validated locally before merge[cite: 12].
+This project was built using **Claude Code** as an AI pair-programming tool for scaffolding, boilerplate, and test generation, while **Renan** designed the RAG architecture, implemented and calibrated the core retrieval and prompt rules, conducted real document ingestion, and owns all debugging and maintenance. All work went through small, focused pull requests, reviewed and validated locally before merge.
 
 | Renan (Author & Maintainer) | Claude Code (AI Pair-Programmer) |
 |---|---|
-| System architecture and technical decisions (RAG pipeline, stack, deterministic refusal strategy)[cite: 12] | Initial project scaffolding, Docker Compose setup, and GitHub Actions CI configuration[cite: 12] |
-| Implementing and calibrating core RAG logic (chunking parameters, similarity threshold, system prompt, prompt-injection guardrails)[cite: 12] | Boilerplate for REST endpoints (`POST /api/chat`), DTOs, CORS, and error handling |
-| Running real PDF ingestion, diagnosing production bottlenecks (path resolution, Gemini rate limits, NUL byte sanitization), and fixing bugs | Generating unit and integration test suites (JUnit 5, Mockito, Testcontainers, Vitest, `node --test`)[cite: 12] |
-| Building the 30-question golden set answer key, running evaluation rounds, and grading answer accuracy[cite: 8, 9] | Base React + TypeScript UI components and evaluation runner scripts[cite: 12] |
-| Reviewing every diff, running local test suites, and maintaining the codebase[cite: 12] | Assisting with documentation drafts under strict repository guardrails |
+| System architecture and technical decisions (RAG pipeline, stack, deterministic refusal strategy) | Initial project scaffolding, Docker Compose setup, and GitHub Actions CI configuration |
+| Implementing and calibrating core RAG logic (chunking parameters, similarity threshold, system prompt, prompt-injection guardrails) | Boilerplate for REST endpoints (`POST /api/chat`), DTOs, CORS, and error handling |
+| Running real PDF ingestion, diagnosing production bottlenecks (path resolution, Gemini rate limits, NUL byte sanitization), and fixing bugs | Generating unit and integration test suites (JUnit 5, Mockito, Testcontainers, Vitest, `node --test`) |
+| Building the 30-question golden set answer key, running evaluation rounds, and grading answer accuracy | Base React + TypeScript UI components and evaluation runner scripts |
+| Reviewing every diff, running local test suites, and maintaining the codebase | Assisting with documentation drafts under strict repository guardrails |
 
 Repository guardrails enforced during AI-assisted sessions:
 - small, reviewable PRs;
 - automated tests for all new code, with external LLM calls mocked;
-- no secrets, `.env`, or institutional PDFs committed to Git[cite: 8, 12];
+- no secrets, `.env`, or institutional PDFs committed to Git;
 - no changes to retrieval logic, system prompts, similarity thresholds, or the golden set without explicit manual validation.
 
 ## Current limitations
