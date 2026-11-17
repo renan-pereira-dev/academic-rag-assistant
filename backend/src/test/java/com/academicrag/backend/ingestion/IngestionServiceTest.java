@@ -2,6 +2,8 @@ package com.academicrag.backend.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -14,6 +16,7 @@ import com.knuddels.jtokkit.api.IntArrayList;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -37,6 +40,11 @@ class IngestionServiceTest {
 	private static final int CHUNK_SIZE = 60;
 
 	private static final int OVERLAP = 10;
+
+	// Lote grande o bastante para um PDF de teste caber em uma única chamada ao VectorStore.
+	private static final int ONE_BATCH = 1_000;
+
+	private static final long NO_DELAY = 0;
 
 	@TempDir
 	Path docsDir;
@@ -124,7 +132,7 @@ class IngestionServiceTest {
 	@Test
 	void missingDirectoryFailsFast() {
 		IngestionService service = new IngestionService(vectorStore, docsDir.resolve("nao-existe").toString(),
-				CHUNK_SIZE, OVERLAP);
+				CHUNK_SIZE, OVERLAP, ONE_BATCH, NO_DELAY);
 
 		assertThatThrownBy(service::ingest).isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("nao-existe");
@@ -137,19 +145,89 @@ class IngestionServiceTest {
 		writeManual("regulamento.pdf");
 		String relativeDocsDir = docsDir.resolve("backend").resolve("..").toString();
 
-		IngestionResult result = new IngestionService(vectorStore, relativeDocsDir, CHUNK_SIZE, OVERLAP).ingest();
+		IngestionResult result = new IngestionService(vectorStore, relativeDocsDir, CHUNK_SIZE, OVERLAP, ONE_BATCH,
+				NO_DELAY)
+			.ingest();
 
 		assertThat(result.files()).isEqualTo(1);
 	}
 
 	@Test
 	void rejectsOverlapNotSmallerThanChunkSize() {
-		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir.toString(), 100, 100))
+		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir.toString(), 100, 100, ONE_BATCH, NO_DELAY))
+			.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void sendsChunksInBatchesOfConfiguredSizeKeepingOrder() throws IOException {
+		writeManual("regulamento.pdf");
+		List<Document> allChunks = ingestAndCapture();
+		clearInvocations(vectorStore);
+
+		IngestionResult result = new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, 2,
+				NO_DELAY)
+			.ingest();
+
+		// Captor novo: o chunksCaptor ainda guarda a captura da execução de referência acima.
+		@SuppressWarnings("unchecked")
+		ArgumentCaptor<List<Document>> batchCaptor = ArgumentCaptor.forClass(List.class);
+		verify(vectorStore, atLeast(2)).add(batchCaptor.capture());
+		List<List<Document>> batches = batchCaptor.getAllValues();
+		assertThat(batches).allSatisfy(batch -> assertThat(batch).hasSizeBetween(1, 2));
+		assertThat(batches.stream().flatMap(List::stream).map(Document::getText))
+			.containsExactlyElementsOf(allChunks.stream().map(Document::getText).toList());
+		assertThat(result.chunks()).isEqualTo(allChunks.size());
+	}
+
+	@Test
+	void pausesBeforeEveryBatchExceptTheFirstIncludingAcrossFiles() throws IOException {
+		writeManual("a-graduacao.pdf");
+		writeManual("b-estagios.pdf");
+		List<Long> pauses = new ArrayList<>();
+		IngestionService service = new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, 2,
+				25_000) {
+			@Override
+			void pause(long millis) {
+				pauses.add(millis);
+			}
+		};
+
+		service.ingest();
+
+		verify(vectorStore, atLeast(4)).add(chunksCaptor.capture());
+		int batches = chunksCaptor.getAllValues().size();
+		assertThat(pauses).hasSize(batches - 1).containsOnly(25_000L);
+	}
+
+	@Test
+	void zeroDelayNeverPauses() throws IOException {
+		writeManual("regulamento.pdf");
+		List<Long> pauses = new ArrayList<>();
+		IngestionService service = new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, 2,
+				NO_DELAY) {
+			@Override
+			void pause(long millis) {
+				pauses.add(millis);
+			}
+		};
+
+		service.ingest();
+
+		verify(vectorStore, atLeast(2)).add(chunksCaptor.capture());
+		assertThat(pauses).isEmpty();
+	}
+
+	@Test
+	void rejectsInvalidBatchSettings() {
+		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, 0,
+				NO_DELAY))
+			.isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, 1, -1))
 			.isInstanceOf(IllegalArgumentException.class);
 	}
 
 	private IngestionService service() {
-		return new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP);
+		return new IngestionService(vectorStore, docsDir.toString(), CHUNK_SIZE, OVERLAP, ONE_BATCH, NO_DELAY);
 	}
 
 	private List<Document> ingestAndCapture() {
