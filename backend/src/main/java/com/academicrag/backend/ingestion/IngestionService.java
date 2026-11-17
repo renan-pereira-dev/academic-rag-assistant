@@ -53,6 +53,10 @@ public class IngestionService {
 
 	private final TokenTextSplitter splitter;
 
+	private final int batchSize;
+
+	private final long batchDelayMs;
+
 	// Mesmo tokenizer usado por padrão no TokenTextSplitter, para o overlap ser medido na mesma escala.
 	private final Encoding encoding = Encodings.newLazyEncodingRegistry().getEncoding(EncodingType.CL100K_BASE);
 
@@ -60,7 +64,15 @@ public class IngestionService {
 	// recurso do ServletContext do Tomcat e falha com caminhos relativos como "../docs".
 	public IngestionService(VectorStore vectorStore, @Value("${app.ingestion.docs-dir:../docs}") String docsDir,
 			@Value("${app.ingestion.chunk-size:800}") int chunkSize,
-			@Value("${app.ingestion.chunk-overlap:100}") int chunkOverlap) {
+			@Value("${app.ingestion.chunk-overlap:100}") int chunkOverlap,
+			@Value("${app.ingestion.batch-size:15}") int batchSize,
+			@Value("${app.ingestion.batch-delay-ms:25000}") long batchDelayMs) {
+		if (batchSize <= 0) {
+			throw new IllegalArgumentException("app.ingestion.batch-size deve ser maior que zero.");
+		}
+		if (batchDelayMs < 0) {
+			throw new IllegalArgumentException("app.ingestion.batch-delay-ms não pode ser negativo.");
+		}
 		if (chunkSize <= 0) {
 			throw new IllegalArgumentException("app.ingestion.chunk-size deve ser maior que zero.");
 		}
@@ -71,6 +83,8 @@ public class IngestionService {
 		this.docsDir = Path.of(docsDir);
 		this.chunkOverlap = chunkOverlap;
 		this.splitter = TokenTextSplitter.builder().withChunkSize(chunkSize).build();
+		this.batchSize = batchSize;
+		this.batchDelayMs = batchDelayMs;
 	}
 
 	/**
@@ -86,6 +100,7 @@ public class IngestionService {
 		int totalPages = 0;
 		int totalEmptyPages = 0;
 		int totalChunks = 0;
+		int batchesSent = 0;
 		for (Path pdf : pdfs) {
 			String fileName = pdf.getFileName().toString();
 			int pageCount = countPages(pdf);
@@ -97,9 +112,7 @@ public class IngestionService {
 				chunks.addAll(chunkPage(fileName, page));
 			}
 			// Grava por arquivo: limita memória e preserva o que já foi ingerido se um PDF posterior falhar.
-			if (!chunks.isEmpty()) {
-				vectorStore.add(chunks);
-			}
+			batchesSent = addInBatches(fileName, chunks, batchesSent);
 			log.info("{}: {} páginas, {} vazias (ignoradas), {} chunks gravados.", fileName, pageCount, emptyPages,
 					chunks.size());
 			totalPages += pageCount;
@@ -109,6 +122,38 @@ public class IngestionService {
 		IngestionResult result = new IngestionResult(pdfs.size(), totalPages, totalEmptyPages, totalChunks);
 		log.info("Ingestão: {}", result);
 		return result;
+	}
+
+	/**
+	 * Envia os chunks ao VectorStore em lotes de {@code batchSize}, pausando {@code batchDelayMs} antes
+	 * de cada lote exceto o primeiro da execução. Cada {@code add} gera os embeddings no Gemini, e o
+	 * plano gratuito limita os tokens por minuto; a pausa vale também entre arquivos.
+	 * @return total de lotes enviados na execução até agora
+	 */
+	private int addInBatches(String fileName, List<Document> chunks, int batchesSent) {
+		int totalBatches = Math.ceilDiv(chunks.size(), batchSize);
+		for (int batch = 0; batch < totalBatches; batch++) {
+			if (batchesSent > 0 && batchDelayMs > 0) {
+				pause(batchDelayMs);
+			}
+			int from = batch * batchSize;
+			List<Document> slice = List.copyOf(chunks.subList(from, Math.min(from + batchSize, chunks.size())));
+			vectorStore.add(slice);
+			batchesSent++;
+			log.info("{}: lote {}/{} gravado ({} chunks).", fileName, batch + 1, totalBatches, slice.size());
+		}
+		return batchesSent;
+	}
+
+	/** Pausa entre lotes; package-private para os testes verificarem as pausas sem esperar de verdade. */
+	void pause(long millis) {
+		try {
+			Thread.sleep(millis);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("Ingestão interrompida durante a pausa entre lotes.", ex);
+		}
 	}
 
 	private List<Path> listPdfs() {
